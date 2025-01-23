@@ -74,7 +74,7 @@ def get_args_parser():
                         help='number of nodes for distributed training')
     parser.add_argument('--rank', default=0, type=int,
                         help='node rank for distributed training')
-    parser.add_argument("--local_rank", type=int, default=0)
+    parser.add_argument("--local-rank", type=int, default=0)
     parser.add_argument('--dist-url', default='env://', type=str,
                         help='url used to set up distributed training')
     parser.add_argument('--dist-backend', default='nccl', type=str)
@@ -115,12 +115,15 @@ def main(args):
     model = getattr(models, args.model)(args=args)
     model.cuda(args.gpu)
 
+    print("=> distributed")
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], bucket_cap_mb=200, find_unused_parameters=False)
 
+    print("=> define loss function")
     # define loss function (criterion) and optimizer
     criterion = models.get_loss(args).cuda(args.gpu)
 
+    print("=> set freeze")
     p_wd, p_non_wd = [], []
     for n, p in model.named_parameters():
         if not p.requires_grad:
@@ -176,7 +179,8 @@ def main(args):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     train_transform = transforms.Compose([
-            transforms.RandomResizedCrop(224, scale=(0.5, 1.0)),
+            # transforms.RandomResizedCrop(224, scale=(0.5, 1.0)),
+            transforms.Resize(size=(224, 224)),
             transforms.ToTensor(),
             normalize
         ])
@@ -280,7 +284,9 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule,
     model.train()
 
     end = time.time()
-    for data_iter, inputs in enumerate(train_loader):
+    logit_scale = 0
+    for data_iter, inputs in enumerate(train_loader): 
+        # sample['taxonomy_id'], sample['model_id'], tokenized_captions, data, image
         optim_iter = data_iter // args.update_freq
 
         # measure data loading time
@@ -295,6 +301,11 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule,
         texts = inputs[2]
 
         image = inputs[4]
+
+        print('pc', pc.shape)
+        print('texts', texts.shape)
+        print('image', image.shape)
+
         inputs = [pc, texts, image]
 
         inputs = [tensor.cuda(args.gpu, non_blocking=True) for tensor in inputs]

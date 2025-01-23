@@ -1,0 +1,4 @@
+NAME: ShapeNetV2
+DATA_PATH: data/shapenetv2
+PC_PATH: data/shapenetv2
+IMAGE_PATH: data/shapenetv2

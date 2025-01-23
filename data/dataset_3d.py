@@ -23,6 +23,9 @@ import json
 from tqdm import tqdm
 import pickle
 from PIL import Image
+# import pandas as pd
+import scanpy as sc
+
 
 def pil_loader(path):
     # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
@@ -451,7 +454,97 @@ class ShapeNet(data.Dataset):
 
     def __len__(self):
         return len(self.file_list)
+
+
+@DATASETS.register_module()
+class ShapeNetV2(data.Dataset):
+    def __init__(self, config):
+
+        self.data_root = config.DATA_PATH
+        self.pc_path = config.PC_PATH
+        self.subset = config.subset
+        self.npoints = config.npoints
+        self.tokenizer = config.tokenizer
+        self.train_transform = config.train_transform
+        with open(os.path.join(self.data_root, f'{self.subset}_items.pkl'), 'rb') as fp:
+            self.items = pickle.load(fp)
+        self.geneX = sc.read_10x_h5(os.path.join(self.data_root, 'cell_feature_matrix.h5')).X
+        
+        self.permutation = np.arange(self.npoints)
+
+        self.uniform = True
+        self.augment = True
+        self.use_caption_templates = False
+        # =================================================
+        # TODO: disable for backbones except for PointNEXT!!!
+        self.use_height = config.use_height
+        # =================================================
+
+        if self.augment:
+            print("using augmented point clouds.")
+
+    def pc_norm(self, pc):
+        """ pc: NxC, return NxC """
+        centroid = np.mean(pc, axis=0)
+        pc = pc - centroid
+        m = np.max(np.sqrt(np.sum(pc ** 2, axis=1)))
+        pc = pc / m
+        return pc
+
+    def __getitem__(self, idx):
+        item = self.items[idx]
+        prefix, gene_inds, captions = item['prefix'], item['gene_inds'], item['label']
+
+        num_sub_images = 32
+        sub_image_size = 14
+        data = np.zeros((1024, 3), dtype=np.float32)
+        rgb_data = np.zeros((1024, 5006), dtype=np.float32)
+        i = 0
+        for row in range(num_sub_images):
+            for col in range(num_sub_images):
+                ccx = row*sub_image_size + sub_image_size//2
+                ccy = col*sub_image_size + sub_image_size//2
+                key = (row,col)
+                data[i] = [ccx, ccy, 0]
+                if key in gene_inds:
+                    rgb_data[i] = self.geneX[gene_inds[key]].mean(axis=0)
+                i+=1
+
+        data = self.pc_norm(data)
+        rgb_data = np.log(1+rgb_data)
+        rgb_data = rgb_data[:, :3]
+
+        if self.augment:
+            data = random_point_dropout(data[None, ...])
+            data = random_scale_point_cloud(data)
+            data = shift_point_cloud(data)
+            data = rotate_perturbation_point_cloud(data)
+            data = rotate_point_cloud(data)
+            data = data.squeeze()
+
+        data = np.concatenate([data, rgb_data], axis=1)
+        data = torch.from_numpy(data).float()
+
+        captions = [caption.strip() for caption in captions.split(',') if caption.strip()]
+        caption = random.choice(captions)
+        captions = []
+        tokenized_captions = []
+        tokenized_captions.append(self.tokenizer(caption))
+        tokenized_captions = torch.stack(tokenized_captions)
+
+        picked_image_addr = os.path.join(self.data_root, prefix+'.jpg')
+        try:
+            image = pil_loader(picked_image_addr)
+            image = self.train_transform(image)
+        except:
+            raise ValueError("image is corrupted: {}".format(picked_image_addr))
+
+        return 'mouse', 'cell_type', tokenized_captions, data, image
+
+    def __len__(self):
+        return len(self.items)
     
+
 @DATASETS.register_module()
 class Objaverse_Lvis_Colored(data.Dataset):
     def __init__(self, config):
@@ -541,7 +634,8 @@ class Objaverse_Lvis_Colored(data.Dataset):
 
 import collections.abc as container_abcs
 int_classes = int
-from torch._six import string_classes
+# from torch._six import string_classes
+string_classes = str
 
 import re
 default_collate_err_msg_format = (
@@ -556,7 +650,7 @@ def customized_collate_fn(batch):
     elem_type = type(elem)
 
     if isinstance(batch, list):
-        batch = [example for example in batch if example[4] is not None]
+        batch = [example for example in batch if len(example) >= 5 and example[4] is not None]
 
     if isinstance(elem, torch.Tensor):
         out = None

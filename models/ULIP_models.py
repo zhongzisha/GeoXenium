@@ -369,6 +369,27 @@ def ULIP2_PointBERT_Colored(args):
 
     return model
 
+def ULIP2_PointBERT_Colored_1024(args):
+    print("Get openclip model:")
+    # open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-bigG-14',
+    #                                                                       pretrained='laion2b_s39b_b160k')
+    open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-16')
+    open_clip_model.eval()
+    print("Finished loading the openclip model.")
+
+    # =====================================================================
+    # import the 3D backbone and specify the output point cloud feature dimension
+    from models.pointbert.point_encoder import PointTransformer, PointTransformer_Colored
+    config_addr = './models/pointbert/PointTransformer_1024point.yaml'
+    config = cfg_from_yaml_file(config_addr)
+    point_encoder = PointTransformer_Colored(config.model, args=args)
+    pc_feat_dims = 768
+    # =====================================================================
+
+    model = ULIP2_WITH_OPENCLIP(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims)
+
+    return model
+
 def ULIP_PN_NEXT(args):
     vision_model = timm.create_model('vit_base_patch16_224', num_classes=0)
 

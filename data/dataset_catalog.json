@@ -5,6 +5,12 @@
         "test": "test",
         "usage": "train"
     },
+    "shapenetv2": {
+        "config": "./data/ShapeNetV2.yaml",
+        "train": "train",
+        "test": "train",
+        "usage": "train"
+    },
     "modelnet40": {
         "config": "./data/ModelNet40.yaml",
         "train": "train",
