@@ -512,7 +512,7 @@ class ShapeNetV2(data.Dataset):
 
         data = self.pc_norm(data)
         rgb_data = np.log(1+rgb_data)
-        rgb_data = rgb_data[:, :3]
+        rgb_data = rgb_data[:, :3]  # only use the first 3 genes
 
         if self.augment:
             data = random_point_dropout(data[None, ...])
@@ -660,6 +660,7 @@ def customized_collate_fn(batch):
             numel = sum([x.numel() for x in batch])
             storage = elem.storage()._new_shared(numel)
             out = elem.new(storage)
+            out.resize_(0)  # Explicitly reset before resizing
         return torch.stack(batch, 0, out=out)
     elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
             and elem_type.__name__ != 'string_':

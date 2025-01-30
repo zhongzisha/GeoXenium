@@ -25,6 +25,10 @@ git clone https://github.com/erikwijmans/Pointnet2_PyTorch
 git clone https://github.com/unlimblue/KNN_CUDA.git
 
 
+export TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6"
+
+
+
     source $FRCE_DATA_ROOT/anaonda3/bin/activate th20
     module load cuda/11.8
     module load cudnn/8.8.3-cuda11

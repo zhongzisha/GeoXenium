@@ -13,7 +13,7 @@ import math
 import time
 import wandb
 
-import torch.cuda.amp as amp
+import torch.amp as amp
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
@@ -115,9 +115,9 @@ def main(args):
     model = getattr(models, args.model)(args=args)
     model.cuda(args.gpu)
 
-    print("=> distributed")
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], bucket_cap_mb=200, find_unused_parameters=False)
+        print("=> distributed")
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], bucket_cap_mb=200, find_unused_parameters=True)
 
     print("=> define loss function")
     # define loss function (criterion) and optimizer
@@ -220,7 +220,7 @@ def main(args):
         train_stats = train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule, args)
         val_stats = {"acc1": -1}
 
-        if epoch % 1 == 0:
+        if False:# epoch % 1 == 0:
 
             val_stats = test_zeroshot_3d_core(val_loader, model, tokenizer, args)
             acc1 = val_stats["acc1"]
@@ -302,16 +302,16 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule,
 
         image = inputs[4]
 
-        print('pc', pc.shape)
-        print('texts', texts.shape)
-        print('image', image.shape)
+        # print('pc', pc.shape)  # 2x1024x6
+        # print('texts', texts.shape) # 2x1x77
+        # print('image', image.shape) # 2x3x224x224
 
         inputs = [pc, texts, image]
 
         inputs = [tensor.cuda(args.gpu, non_blocking=True) for tensor in inputs]
 
         # compute output
-        with amp.autocast(enabled=not args.disable_amp):
+        with amp.autocast('cuda', enabled=not args.disable_amp):
             outputs = model(*inputs)
             loss_dict = criterion(outputs)
             loss = loss_dict['loss']

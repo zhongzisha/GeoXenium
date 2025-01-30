@@ -371,9 +371,8 @@ def ULIP2_PointBERT_Colored(args):
 
 def ULIP2_PointBERT_Colored_1024(args):
     print("Get openclip model:")
-    # open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-bigG-14',
-    #                                                                       pretrained='laion2b_s39b_b160k')
-    open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-16')
+    open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-bigG-14', pretrained='laion2b_s39b_b160k')
+    # open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-16')
     open_clip_model.eval()
     print("Finished loading the openclip model.")
 

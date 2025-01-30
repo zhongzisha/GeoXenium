@@ -74,7 +74,22 @@ torchrun \
 --model ULIP2_PointBERT_Colored_1024 \
 --npoints 1024 \
 --lr 1.5e-3 \
---batch-size 2 \
+--batch-size 32 \
 --output-dir ./outputs/reproduce_pointbert_1kpts_version_dataset \
 --pretrain_dataset_name "shapenetv2"
+
+python main.py \
+--model ULIP2_PointBERT_Colored_1024 \
+--npoints 1024 \
+--lr 1.5e-3 \
+--batch-size 2 \
+--output-dir ./outputs/reproduce_pointbert_1kpts_version_dataset \
+--pretrain_dataset_name "shapenetv2" \
+--gpu 0
+
+
+
+
+
+
 
