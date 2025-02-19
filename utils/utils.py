@@ -86,13 +86,21 @@ def is_main_process():
     return get_rank() == 0
 
 
-def save_on_master(state, is_best, output_dir):
+def save_on_master(state, is_best=False, output_dir=""):
     if is_main_process():
         ckpt_path = '{}/checkpoint_{}.pt'.format(output_dir, state['epoch'])
         best_path = f'{output_dir}/checkpoint_best.pt'
         torch.save(state, ckpt_path)
         if is_best:
             shutil.copyfile(ckpt_path, best_path)
+
+def save_on_master2(state, is_best=False, output_dir="", epoch=0):
+    if is_main_process():
+        ckpt_path = '{}/checkpoint_{}.pt'.format(output_dir, epoch)
+        # best_path = f'{output_dir}/checkpoint_best.pt'
+        torch.save(state, ckpt_path)
+        # if is_best:
+        #     shutil.copyfile(ckpt_path, best_path)
 
 
 def init_distributed_mode(args):

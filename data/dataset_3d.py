@@ -461,15 +461,14 @@ class ShapeNetV2(data.Dataset):
     def __init__(self, config):
 
         self.data_root = config.DATA_PATH
-        self.pc_path = config.PC_PATH
         self.subset = config.subset
         self.npoints = config.npoints
         self.tokenizer = config.tokenizer
         self.train_transform = config.train_transform
-        with open(os.path.join(self.data_root, f'{self.subset}_items.pkl'), 'rb') as fp:
+        with open(os.path.join(self.data_root, self.subset, f'{self.subset}_items.pkl'), 'rb') as fp:
             self.items = pickle.load(fp)
-        self.geneX = sc.read_10x_h5(os.path.join(self.data_root, 'cell_feature_matrix.h5')).X
-        
+        # self.geneX = sc.read_10x_h5(os.path.join(self.data_root, 'cell_feature_matrix.h5')).X
+        self.geneX =  np.load(os.path.join(self.data_root, self.subset, 'X_pca_3.npy'))
         self.permutation = np.arange(self.npoints)
 
         self.uniform = True
@@ -493,12 +492,12 @@ class ShapeNetV2(data.Dataset):
 
     def __getitem__(self, idx):
         item = self.items[idx]
-        prefix, gene_inds, captions = item['prefix'], item['gene_inds'], item['label']
+        prefix, gene_inds, captions, label = item['prefix'], item['gene_inds'], item['label_txt'], item['label']
 
         num_sub_images = 32
         sub_image_size = 14
         data = np.zeros((1024, 3), dtype=np.float32)
-        rgb_data = np.zeros((1024, 5006), dtype=np.float32)
+        rgb_data = np.zeros((1024, 3), dtype=np.float32)
         i = 0
         for row in range(num_sub_images):
             for col in range(num_sub_images):
@@ -511,8 +510,8 @@ class ShapeNetV2(data.Dataset):
                 i+=1
 
         data = self.pc_norm(data)
-        rgb_data = np.log(1+rgb_data)
-        rgb_data = rgb_data[:, :3]  # only use the first 3 genes
+        # rgb_data = np.log(1+rgb_data)
+        # rgb_data = rgb_data[:, :3]  # only use the first 3 genes
 
         if self.augment:
             data = random_point_dropout(data[None, ...])
@@ -525,25 +524,65 @@ class ShapeNetV2(data.Dataset):
         data = np.concatenate([data, rgb_data], axis=1)
         data = torch.from_numpy(data).float()
 
-        captions = [caption.strip() for caption in captions.split(',') if caption.strip()]
-        caption = random.choice(captions)
-        captions = []
-        tokenized_captions = []
-        tokenized_captions.append(self.tokenizer(caption))
-        tokenized_captions = torch.stack(tokenized_captions)
+        if self.subset == 'train':
+            captions = [caption.strip() for caption in captions.split(',') if caption.strip()]
+            caption = random.choice(captions)
+            captions = []
+            tokenized_captions = []
+            tokenized_captions.append(self.tokenizer(caption))
+            tokenized_captions = torch.stack(tokenized_captions)
 
-        picked_image_addr = os.path.join(self.data_root, prefix+'.jpg')
-        try:
-            image = pil_loader(picked_image_addr)
-            image = self.train_transform(image)
-        except:
-            raise ValueError("image is corrupted: {}".format(picked_image_addr))
+            picked_image_addr = os.path.join(self.data_root, self.subset, prefix+'.jpg')
+            try:
+                image = pil_loader(picked_image_addr)
+                image = self.train_transform(image)
+            except:
+                raise ValueError("image is corrupted: {}".format(picked_image_addr))
 
-        return 'mouse', 'cell_type', tokenized_captions, data, image
+        if self.subset == 'train':
+            return 'mouse', 'cell_type', tokenized_captions, data, image
+        else:
+            return data, label, captions
 
     def __len__(self):
         return len(self.items)
-    
+
+
+def test_Objaverse_Lvis():
+
+    import json
+    import numpy as np
+    import os
+    lvis_list_addr = '/data/zhongz2/data/ULIP/objaverse-lvis/lvis.json'
+    lvis_metadata_addr = '/data/zhongz2/data/ULIP/objaverse-lvis/objaverse_lvis_metadata.json'
+
+    with open(lvis_list_addr, 'r') as f:
+        npy_file_map = json.load(f)
+
+    file_list = list(npy_file_map.keys())
+
+    with open(lvis_metadata_addr, 'r') as f:
+        lvis_metadata = json.load(f)
+
+    prompt_template_addr = '/home/zhongz2/ULIP/data/templates.json'
+    pretrain_dataset_prompt = 'modelnet40_64'
+    with open(prompt_template_addr) as f:
+        templates = json.load(f)[pretrain_dataset_prompt]
+
+    objaverse_lvis_path = '/data/zhongz2/data/ULIP/objaverse-lvis/'
+
+    sample = file_list[idx]
+    pc_addr = npy_file_map[sample]
+    pc_addr = os.path.join(objaverse_lvis_path,npy_file_map[sample])
+    print(pc_addr)
+    pc_addr = '/data/zhongz2/data/ULIP/objaverse-lvis/000-000/3f6680977eb6487ebe4f882aaf62fa6c.npy'
+    data = np.load(pc_addr, allow_pickle=True)
+    dict_data = data.item()
+    xyz_data = dict_data['xyz']  # -1, 1
+    rgb_data = dict_data['rgb']  # 0, 1
+
+    name = lvis_metadata["value_to_key_mapping"][sample]  # 每个点云的标签，比如apple
+    label = lvis_metadata["key_to_id"][name]  # apple对应的类别id
 
 @DATASETS.register_module()
 class Objaverse_Lvis_Colored(data.Dataset):
@@ -722,6 +761,7 @@ def cfg_from_yaml_file(cfg_file):
 
 class Dataset_3D():
     def __init__(self, args, tokenizer, dataset_type, train_transform=None):
+        self.dataset_type = dataset_type
         if dataset_type == 'train':
             self.dataset_name = args.pretrain_dataset_name
         elif dataset_type == 'val':
@@ -758,5 +798,7 @@ class Dataset_3D():
         config.npoints = args.npoints
         config.use_colored_pc = self.use_colored_pc
         config.use_10k_pc = self.use_10k_pc
-        config_others = EasyDict({'subset': self.dataset_split, 'whole': True})
+        config.DATA_PATH = args.data_path
+        # config_others = EasyDict({'subset': self.dataset_split, 'whole': True})
+        config_others = EasyDict({'subset': self.dataset_type, 'whole': True})
         self.dataset = build_dataset_from_cfg(config, config_others)

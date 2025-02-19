@@ -35,6 +35,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser(description='ULIP training and evaluation', add_help=False)
     # Data
     parser.add_argument('--output-dir', default='./outputs', type=str, help='output dir')
+    parser.add_argument('--data-path', default='', type=str, help='data path')
     parser.add_argument('--pretrain_dataset_name', default='shapenet', type=str)
     parser.add_argument('--pretrain_dataset_prompt', default='shapenet_64', type=str)
     parser.add_argument('--validate_dataset_name', default='modelnet40', type=str)
@@ -86,11 +87,13 @@ def get_args_parser():
     return parser
 
 best_acc1 = 0
+best_train_loss = 1e9
 
 def main(args):
     utils.init_distributed_mode(args)
 
     global best_acc1
+    global best_train_loss
 
     if utils.is_main_process() and args.wandb:
         wandb_id = os.path.split(args.output_dir)[-1]
@@ -212,19 +215,19 @@ def main(args):
     print("=> beginning training")
 
     best_epoch = -1
-
+    
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
 
         train_stats = train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule, args)
-        val_stats = {"acc1": -1}
+        val_stats = {"acc1": 1}
 
-        if False:# epoch % 1 == 0:
+        if epoch % 1 == 0:
 
             val_stats = test_zeroshot_3d_core(val_loader, model, tokenizer, args)
             acc1 = val_stats["acc1"]
-            print(val_stats)
+            # print(val_stats)
 
             is_best = acc1 > best_acc1
             if is_best:
@@ -266,6 +269,7 @@ def main(args):
                 # wandb.watch(model)
             with open(os.path.join(args.output_dir, 'log.txt'), 'a') as f:
                 f.write(json.dumps(log_stats) + '\n')
+
 
 
 def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule, args):
