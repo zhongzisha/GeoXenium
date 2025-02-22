@@ -2,6 +2,7 @@ import numpy as np
 import os
 import random
 import shutil
+import time
 import torch
 import torch.distributed as dist
 import torch.autograd as autograd
@@ -91,6 +92,8 @@ def save_on_master(state, is_best=False, output_dir=""):
         ckpt_path = '{}/checkpoint_{}.pt'.format(output_dir, state['epoch'])
         best_path = f'{output_dir}/checkpoint_best.pt'
         torch.save(state, ckpt_path)
+        time.sleep(0.5)
+        os.system('ln -sf "{}" "{}"'.format(ckpt_path, '{}/checkpoint.pt'.format(output_dir)))
         if is_best:
             shutil.copyfile(ckpt_path, best_path)
 

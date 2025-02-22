@@ -87,13 +87,13 @@ def get_args_parser():
     return parser
 
 best_acc1 = 0
-best_train_loss = 1e9
 
 def main(args):
     utils.init_distributed_mode(args)
+    print('args: ')
+    print(args)
 
     global best_acc1
-    global best_train_loss
 
     if utils.is_main_process() and args.wandb:
         wandb_id = os.path.split(args.output_dir)[-1]
@@ -235,7 +235,7 @@ def main(args):
 
             best_acc1 = max(acc1, best_acc1)
 
-            if is_best or epoch % 50 == 0:
+            if is_best or epoch % 1 == 0:
                 print("=> saving checkpoint")
                 utils.save_on_master({
                         'epoch': epoch + 1,

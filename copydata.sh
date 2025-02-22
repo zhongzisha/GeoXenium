@@ -8,6 +8,7 @@ echo "copy data on `hostname`"
 cd /home/zhongz2/ULIP
 
 SRC_DIR=/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version3
+SRC_DIR=/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version4
 DST_DIR=/lscratch/$SLURM_JOB_ID
 
 for subset in "train" "val"; do

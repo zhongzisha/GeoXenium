@@ -6,6 +6,7 @@ import pickle
 
 # src_dir = sys.argv[1]
 src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version3'
+src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version4'
 
 dirs = glob.glob(os.path.join(src_dir, 'rot*'))
 
