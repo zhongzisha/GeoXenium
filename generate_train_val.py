@@ -7,6 +7,7 @@ import pickle
 # src_dir = sys.argv[1]
 src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version3'
 src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version4'
+src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version5'
 
 dirs = glob.glob(os.path.join(src_dir, 'rot*'))
 
@@ -24,14 +25,19 @@ indices = {
 
 for subset, inds in indices.items():
     file_list = []
+    file_list_he = []
     all_items = []
     for i in inds:
         d = dirs[i]
-        file_list.append(os.path.join(d, 'patches.tar.gz'))
+        file_list.append(os.path.join(d, 'patches_npy.tar.gz'))
+        file_list_he.append(os.path.join(d, 'patches.tar.gz'))
         with open(os.path.join(d, f'train_items_{num_patches}_{patch_size}.pkl'), 'rb') as fp:
             all_items.extend(pickle.load(fp))
-    with open(os.path.join(src_dir, subset+'_list.txt'), 'w') as fp:
+    with open(os.path.join(src_dir, subset+'_list_dapi.txt'), 'w') as fp:
         fp.writelines('\n'.join(file_list))
+        fp.write('\n')
+    with open(os.path.join(src_dir, subset+'_list_he.txt'), 'w') as fp:
+        fp.writelines('\n'.join(file_list_he))
         fp.write('\n')
     with open(os.path.join(src_dir, subset+'_items.pkl'), 'wb') as fp:
         pickle.dump(all_items, fp)
