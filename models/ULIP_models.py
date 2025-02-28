@@ -232,9 +232,12 @@ class ULIP2_WITH_OPENCLIP(nn.Module):
                     'logit_scale': self.logit_scale.exp()}
 
 
+
 def get_loss(args):
     return losses.ULIPWithImageLoss()
 
+def get_loss1(args):
+    return losses.ULIPWithImageLoss1(has_text=args.has_text)
 
 def get_metric_names(model):
     return ['loss', 'ulip_loss', 'ulip_pc_image_acc', 'ulip_pc_text_acc']

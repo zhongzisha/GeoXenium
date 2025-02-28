@@ -31,15 +31,17 @@ exit;
 
 
 IMG_KEY="he"
-for LR in 1e-5 1e-4; do
-sbatch --partition=quick --gres=gpu:a100:4,lscratch:400 --nodes=1 --ntasks-per-node=1 --cpus-per-task=16 --mem=100G --time=4:00:00 --export=ALL \
+for LR in 5e-5 1e-5 1e-4; do
+sbatch --partition=quick --gres=gpu:a100:4,lscratch:400 --nodes=1 --ntasks-per-node=1 --cpus-per-task=16 --mem=200G --time=4:00:00 --export=ALL \
 train2_v2_main.sh ${LR} 32 1 ${IMG_KEY}
+sleep 1
 done
 
 
 
 IMG_KEY="dapi"
-for LR in 1e-5 1e-4; do
-sbatch --partition=quick --gres=gpu:a100:4,lscratch:400 --nodes=1 --ntasks-per-node=1 --cpus-per-task=16 --mem=100G --time=4:00:00 --export=ALL \
+for LR in 5e-5 1e-5 1e-4; do
+sbatch --partition=quick --gres=gpu:a100:4,lscratch:400 --nodes=1 --ntasks-per-node=1 --cpus-per-task=16 --mem=200G --time=4:00:00 --export=ALL \
 train2_v2_main.sh ${LR} 32 1 ${IMG_KEY}
+sleep 1
 done
