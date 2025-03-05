@@ -173,7 +173,7 @@ class ULIP_WITH_IMAGE(nn.Module):
                     'pc_embed': pc_embed,
                     'logit_scale': self.logit_scale.exp()}
             
-            
+           
 class ULIP2_WITH_OPENCLIP(nn.Module):
     def __init__(self, point_encoder, **kwargs):
         # super().__init__(ssl_mlp_dim, ssl_emb_dim, **kwargs)
@@ -231,6 +231,46 @@ class ULIP2_WITH_OPENCLIP(nn.Module):
                     'pc_embed': pc_embed,
                     'logit_scale': self.logit_scale.exp()}
 
+
+           
+class ULIP2_WITH_OPENCLIP_NoText(nn.Module):
+    def __init__(self, point_encoder, **kwargs):
+        super().__init__()
+        kwargs = EasyDict(kwargs)
+
+        self.open_clip_model = kwargs.open_clip_model
+
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
+
+        self.point_encoder = point_encoder
+        
+        self.pc_projection = nn.Parameter(torch.empty(kwargs.pc_feat_dims, 1280))
+        nn.init.normal_(self.pc_projection, std=1280 ** -0.5)
+
+    def encode_image(self, image):
+        x = self.open_clip_model.encode_image(image)
+
+        return x
+
+    def encode_pc(self, pc):
+        pc_feat = self.point_encoder(pc)
+        pc_embed = pc_feat @ self.pc_projection
+        return pc_embed
+
+    def forward(self, pc, image=None):
+
+        pc_embed = self.encode_pc(pc)
+        if image is not None:
+            image_embed = self.encode_image(image)
+            return {
+                    'pc_embed': pc_embed,
+                    'image_embed': image_embed,
+                    'logit_scale': self.logit_scale.exp()}
+
+        else:
+            return {
+                    'pc_embed': pc_embed,
+                    'logit_scale': self.logit_scale.exp()}
 
 
 def get_loss(args):
@@ -391,6 +431,31 @@ def ULIP2_PointBERT_Colored_1024(args):
     model = ULIP2_WITH_OPENCLIP(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims)
 
     return model
+
+
+
+def ULIP2_PointBERT_Colored_1024_NoText(args):
+    print("Get openclip model:")
+    open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-bigG-14', pretrained='laion2b_s39b_b160k')
+    # open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-16')
+    open_clip_model.eval()
+    print("Finished loading the openclip model.")
+
+    # =====================================================================
+    # import the 3D backbone and specify the output point cloud feature dimension
+    from models.pointbert.point_encoder import PointTransformer, PointTransformer_Colored
+    config_addr = './models/pointbert/PointTransformer_1024point.yaml'
+    config = cfg_from_yaml_file(config_addr)
+    point_encoder = PointTransformer_Colored(config.model, args=args)
+    pc_feat_dims = 768
+    # =====================================================================
+
+    # model = ULIP2_WITH_OPENCLIP(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims)
+    model = ULIP2_WITH_OPENCLIP_NoText(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims)
+
+    return model
+
+
 
 def ULIP_PN_NEXT(args):
     vision_model = timm.create_model('vit_base_patch16_224', num_classes=0)

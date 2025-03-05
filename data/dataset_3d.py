@@ -552,7 +552,7 @@ class ShapeNetV2_bak2(data.Dataset):
 
 
 @DATASETS.register_module()
-class ShapeNetV2(data.Dataset):
+class ShapeNetV2_bak2(data.Dataset):
     def __init__(self, config):
 
         self.data_root = config.DATA_PATH
@@ -646,6 +646,107 @@ class ShapeNetV2(data.Dataset):
 
     def __len__(self):
         return len(self.items)
+
+
+
+
+@DATASETS.register_module()
+class ShapeNetV2(data.Dataset):
+    def __init__(self, config):
+
+        self.data_root = config.DATA_PATH
+        self.img_key = config.IMG_KEY
+        self.subset = config.subset
+        self.npoints = config.npoints
+        self.tokenizer = config.tokenizer
+        self.train_transform = config.train_transform
+        with open(os.path.join(self.data_root, self.subset, f'{self.subset}_items.pkl'), 'rb') as fp:
+            self.items = pickle.load(fp)
+        self.prefixes = list(self.items.keys())
+        self.geneX = sc.read_10x_h5(os.path.join(self.data_root, 'cell_feature_matrix.h5')).X
+        self.geneX = np.log1p(self.geneX)
+        # self.geneX =  np.load(os.path.join(self.data_root, self.subset, 'X_pca_3.npy'))
+        self.permutation = np.arange(self.npoints)
+
+        self.uniform = True
+        self.augment = True
+        self.use_caption_templates = False
+        # =================================================
+        # TODO: disable for backbones except for PointNEXT!!!
+        self.use_height = config.use_height
+        # =================================================
+
+        if self.augment:
+            print("using augmented point clouds.")
+
+    def pc_norm(self, pc):
+        """ pc: NxC, return NxC """
+        centroid = np.mean(pc, axis=0)
+        pc = pc - centroid
+        m = np.max(np.sqrt(np.sum(pc ** 2, axis=1)))
+        pc = pc / m
+        return pc
+
+    def __getitem__(self, idx):
+
+        prefix = self.prefixes[idx]
+        item = self.items[prefix]
+        gene_inds, captions, label = item['gene_inds'], item['label_txt'], item['label']
+        inds, inds2 = item['inds'], item['inds2']
+
+        label1 = self.geneX[inds].mean(axis=0)
+        label2 = self.geneX[inds2].mean(axis=0)
+
+        num_sub_images = 32
+        sub_image_size = 14
+        data = np.zeros((1024, 3), dtype=np.float32)
+        rgb_data = np.zeros((1024, 3), dtype=np.float32)
+        i = 0
+        for row in range(num_sub_images):
+            for col in range(num_sub_images):
+                ccx = row*sub_image_size + sub_image_size//2
+                ccy = col*sub_image_size + sub_image_size//2
+                key = (row,col)
+                data[i] = [ccx, ccy, 0]
+                if key in gene_inds:
+                    rgb_data[i] = self.geneX[gene_inds[key]].mean(axis=0)
+                i+=1
+
+        data = self.pc_norm(data)
+        # rgb_data = np.log(1+rgb_data)
+        # rgb_data = rgb_data[:, :3]  # only use the first 3 genes
+
+        if self.augment:
+            data = random_point_dropout(data[None, ...])
+            data = random_scale_point_cloud(data)
+            data = shift_point_cloud(data)
+            data = rotate_perturbation_point_cloud(data)
+            data = rotate_point_cloud(data)
+            data = data.squeeze()
+
+        data = np.concatenate([data, rgb_data], axis=1)
+        data = torch.from_numpy(data).float()
+
+        if self.subset == 'train':
+            try:
+                if self.img_key == 'he':
+                    picked_image_addr = os.path.join(self.data_root, self.subset, prefix+'.jpg')
+                    image = pil_loader(picked_image_addr)
+                else:
+                    picked_image_addr = os.path.join(self.data_root, self.subset, prefix+'_'+self.img_key)
+                    image = np.load(picked_image_addr)
+                image = self.train_transform(image)
+            except:
+                raise ValueError("image is corrupted: {}".format(picked_image_addr))
+
+        if self.subset == 'train':
+            return 'mouse', 'cell_type', data, image, label1, label2
+        else:
+            return data, label, label1, label2
+
+    def __len__(self):
+        return len(self.items)
+
 
 
 def test_Objaverse_Lvis():
