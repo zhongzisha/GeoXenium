@@ -61,8 +61,26 @@ exit;
 
 
 
-
-
-
+torchrun \
+    --nproc_per_node 4 \
+    --nnodes 1 \
+    --rdzv_endpoint localhost:24999 \
+    --rdzv_backend c10d \
+    --max_restarts 0 \
+    --role `hostname -s`: \
+    --tee 3 \
+     main_v3.py \
+--model ULIP2_PointBERT_Colored_1024_NoText \
+--npoints 1024 \
+--lr 5e-5 \
+--batch-size 32 \
+--output-dir /lscratch/$SLURM_JOB_ID/outputs \
+--pretrain_dataset_name "shapenetv2" \
+--pretrain_dataset_prompt "shapenetv2_64" \
+--validate_dataset_name "shapenetv2" \
+--validate_dataset_prompt "shapenetv2_64" \
+--data-path /lscratch/$SLURM_JOB_ID \
+--img-key he \
+--input-dim 5009
 
 

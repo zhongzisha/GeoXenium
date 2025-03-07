@@ -552,7 +552,7 @@ class ShapeNetV2_bak2(data.Dataset):
 
 
 @DATASETS.register_module()
-class ShapeNetV2_bak2(data.Dataset):
+class ShapeNetV2_bak3(data.Dataset):
     def __init__(self, config):
 
         self.data_root = config.DATA_PATH
@@ -661,9 +661,21 @@ class ShapeNetV2(data.Dataset):
         self.tokenizer = config.tokenizer
         self.train_transform = config.train_transform
         with open(os.path.join(self.data_root, self.subset, f'{self.subset}_items.pkl'), 'rb') as fp:
-            self.items = pickle.load(fp)
-        self.prefixes = list(self.items.keys())
-        self.geneX = sc.read_10x_h5(os.path.join(self.data_root, 'cell_feature_matrix.h5')).X
+            items = pickle.load(fp)
+        
+        # filtering
+        for k in list(items.keys()):
+            v = items[k]
+            if 'inds' not in v or 'inds2' not in v:
+                items.pop(k)
+            else:
+                if len(v['inds']) == 0 or len(v['inds2']) ==0:
+                    items.pop(k)
+
+        self.prefixes = list(items.keys())
+        self.items = items
+
+        self.geneX = sc.read_10x_h5(os.path.join(self.data_root,self.subset,  'cell_feature_matrix.h5')).X.toarray()
         self.geneX = np.log1p(self.geneX)
         # self.geneX =  np.load(os.path.join(self.data_root, self.subset, 'X_pca_3.npy'))
         self.permutation = np.arange(self.npoints)
@@ -689,9 +701,9 @@ class ShapeNetV2(data.Dataset):
 
     def __getitem__(self, idx):
 
-        prefix = self.prefixes[idx]
-        item = self.items[prefix]
-        gene_inds, captions, label = item['gene_inds'], item['label_txt'], item['label']
+        prefix1 = self.prefixes[idx]
+        item = self.items[prefix1]
+        prefix, gene_inds, captions, label = item['prefix'], item['gene_inds'], item['label_txt'], item['label']
         inds, inds2 = item['inds'], item['inds2']
 
         label1 = self.geneX[inds].mean(axis=0)
@@ -700,7 +712,7 @@ class ShapeNetV2(data.Dataset):
         num_sub_images = 32
         sub_image_size = 14
         data = np.zeros((1024, 3), dtype=np.float32)
-        rgb_data = np.zeros((1024, 3), dtype=np.float32)
+        rgb_data = np.zeros((1024, self.geneX.shape[1]), dtype=np.float32)
         i = 0
         for row in range(num_sub_images):
             for col in range(num_sub_images):

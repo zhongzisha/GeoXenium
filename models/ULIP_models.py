@@ -237,6 +237,7 @@ class ULIP2_WITH_OPENCLIP_NoText(nn.Module):
     def __init__(self, point_encoder, **kwargs):
         super().__init__()
         kwargs = EasyDict(kwargs)
+        num_genes = kwargs.num_genes
 
         self.open_clip_model = kwargs.open_clip_model
 
@@ -246,6 +247,9 @@ class ULIP2_WITH_OPENCLIP_NoText(nn.Module):
         
         self.pc_projection = nn.Parameter(torch.empty(kwargs.pc_feat_dims, 1280))
         nn.init.normal_(self.pc_projection, std=1280 ** -0.5)
+
+        self.gene_proj1 = nn.Linear(1280, num_genes)
+        self.gene_proj2 = nn.Linear(1280, num_genes)
 
     def encode_image(self, image):
         x = self.open_clip_model.encode_image(image)
@@ -257,30 +261,40 @@ class ULIP2_WITH_OPENCLIP_NoText(nn.Module):
         pc_embed = pc_feat @ self.pc_projection
         return pc_embed
 
-    def forward(self, pc, image=None):
+    def forward(self, pc, image=None, label1=None, label2=None):
 
         pc_embed = self.encode_pc(pc)
+        gene_logits1 = self.gene_proj1(pc_embed)
+        gene_logits2 = self.gene_proj2(pc_embed)
         if image is not None:
             image_embed = self.encode_image(image)
             return {
                     'pc_embed': pc_embed,
                     'image_embed': image_embed,
-                    'logit_scale': self.logit_scale.exp()}
+                    'logit_scale': self.logit_scale.exp(),
+                    'gene_logits1': gene_logits1,
+                    'gene_logits2': gene_logits2}
 
         else:
             return {
                     'pc_embed': pc_embed,
-                    'logit_scale': self.logit_scale.exp()}
+                    'logit_scale': self.logit_scale.exp(),
+                    'gene_logits1': gene_logits1,
+                    'gene_logits2': gene_logits2}
 
 
 def get_loss(args):
     return losses.ULIPWithImageLoss()
 
 def get_loss1(args):
-    return losses.ULIPWithImageLoss1(has_text=args.has_text)
+    return losses.ULIPWithImageLoss1()
 
 def get_metric_names(model):
     return ['loss', 'ulip_loss', 'ulip_pc_image_acc', 'ulip_pc_text_acc']
+
+def get_metric_names1(model):
+    return ['loss', 'ulip_loss', 'ulip_pc_image_acc', 'gene_loss1', 'gene_loss2']
+
 
 
 def ULIP_PN_SSG(args):
@@ -451,7 +465,7 @@ def ULIP2_PointBERT_Colored_1024_NoText(args):
     # =====================================================================
 
     # model = ULIP2_WITH_OPENCLIP(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims)
-    model = ULIP2_WITH_OPENCLIP_NoText(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims)
+    model = ULIP2_WITH_OPENCLIP_NoText(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims, num_genes=int(args.input_dim)-3)
 
     return model
 

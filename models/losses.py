@@ -69,10 +69,12 @@ class ULIPWithImageLoss1(nn.Module):
         self.labels = None
         self.last_local_batch_size = None
 
-    def forward(self, outputs):
+    def forward(self, outputs, label1, label2):
         pc_embed = outputs['pc_embed']
         image_embed = outputs['image_embed']
         logit_scale = outputs['logit_scale']
+        gene_logits1 = outputs['gene_logits1']
+        gene_logits2 = outputs['gene_logits2']
         local_batch_size = pc_embed.size(0)
 
         if local_batch_size != self.last_local_batch_size:
@@ -86,14 +88,17 @@ class ULIPWithImageLoss1(nn.Module):
         image_embed = F.normalize(image_embed, dim=-1, p=2)
 
         # gather features from all GPUs
-        pc_embed_all, image_embed_all = \
-                utils.all_gather_batch([pc_embed, image_embed])
+        pc_embed_all, image_embed_all, gene_logits1_all, gene_logits2_all, label1_all, label2_all = \
+                utils.all_gather_batch([pc_embed, image_embed, gene_logits1, gene_logits2, label1, label2])
 
         # cosine similarity as logits
         logits_per_pc_image = logit_scale * pc_embed @ image_embed_all.t()
         logits_per_image_pc = logit_scale * image_embed @ pc_embed_all.t()
 
         loss = (F.cross_entropy(logits_per_pc_image, self.labels) + F.cross_entropy(logits_per_image_pc, self.labels)) / 2
+        gene_loss1 = F.mse_loss(gene_logits1_all, label1_all)
+        gene_loss2 = F.mse_loss(gene_logits2_all, label2_all)
+        loss += gene_loss1 + gene_loss2
 
         # compute accuracy
         with torch.no_grad():
@@ -102,4 +107,4 @@ class ULIPWithImageLoss1(nn.Module):
             correct = pred.eq(self.labels).sum()
             pc_image_acc = 100 * correct / local_batch_size
 
-        return {'loss': loss, 'ulip_loss': loss, 'ulip_pc_image_acc': pc_image_acc}
+        return {'loss': loss, 'ulip_loss': loss, 'ulip_pc_image_acc': pc_image_acc, 'gene_loss1': gene_loss1, 'gene_loss2': gene_loss2}

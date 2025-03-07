@@ -253,7 +253,7 @@ class PointTransformer_Colored(nn.Module):
         self.group_divider = Group(num_group=self.num_group, group_size=self.group_size)
         # define the encoder
         self.encoder_dims = config.encoder_dims
-        self.encoder = Encoder(encoder_channel=self.encoder_dims, input_dim=6)
+        self.encoder = Encoder(encoder_channel=self.encoder_dims, input_dim=self.args.input_dim)
         # bridge encoder and transformer
         self.reduce_dim = nn.Linear(self.encoder_dims, self.trans_dim)
 
