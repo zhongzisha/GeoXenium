@@ -232,7 +232,7 @@ class ULIP2_WITH_OPENCLIP(nn.Module):
                     'logit_scale': self.logit_scale.exp()}
 
 
-           
+    
 class ULIP2_WITH_OPENCLIP_NoText(nn.Module):
     def __init__(self, point_encoder, **kwargs):
         super().__init__()
@@ -283,17 +283,69 @@ class ULIP2_WITH_OPENCLIP_NoText(nn.Module):
                     'gene_logits2': gene_logits2}
 
 
+
+
+    
+class ULIP2_WITH_OPENCLIP_NoText_NoGeneLoss(nn.Module):
+    def __init__(self, point_encoder, **kwargs):
+        super().__init__()
+        kwargs = EasyDict(kwargs)
+        num_genes = kwargs.num_genes
+
+        self.open_clip_model = kwargs.open_clip_model
+
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
+
+        self.point_encoder = point_encoder
+        
+        self.pc_projection = nn.Parameter(torch.empty(kwargs.pc_feat_dims, 1280))
+        nn.init.normal_(self.pc_projection, std=1280 ** -0.5)
+
+    def encode_image(self, image):
+        x = self.open_clip_model.encode_image(image)
+
+        return x
+
+    def encode_pc(self, pc):
+        pc_feat = self.point_encoder(pc)
+        pc_embed = pc_feat @ self.pc_projection
+        return pc_embed
+
+    def forward(self, pc, image=None, label1=None, label2=None):
+
+        pc_embed = self.encode_pc(pc)
+        if image is not None:
+            image_embed = self.encode_image(image)
+            return {
+                    'pc_embed': pc_embed,
+                    'image_embed': image_embed,
+                    'logit_scale': self.logit_scale.exp()}
+
+        else:
+            return {
+                    'pc_embed': pc_embed,
+                    'logit_scale': self.logit_scale.exp()}
+
+
+
+
 def get_loss(args):
     return losses.ULIPWithImageLoss()
 
 def get_loss1(args):
     return losses.ULIPWithImageLoss1()
 
+def get_loss2(args):
+    return losses.ULIPWithImageLoss2()
+
 def get_metric_names(model):
     return ['loss', 'ulip_loss', 'ulip_pc_image_acc', 'ulip_pc_text_acc']
 
 def get_metric_names1(model):
     return ['loss', 'ulip_loss', 'ulip_pc_image_acc', 'gene_loss1', 'gene_loss2']
+
+def get_metric_names2(model):
+    return ['loss', 'ulip_loss', 'ulip_pc_image_acc']
 
 
 
@@ -468,6 +520,32 @@ def ULIP2_PointBERT_Colored_1024_NoText(args):
     model = ULIP2_WITH_OPENCLIP_NoText(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims, num_genes=int(args.input_dim)-3)
 
     return model
+
+
+
+
+def ULIP2_PointBERT_Colored_1024_NoText_NoGeneLoss(args):
+    print("Get openclip model:")
+    open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-bigG-14', pretrained='laion2b_s39b_b160k')
+    # open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-16')
+    open_clip_model.eval()
+    print("Finished loading the openclip model.")
+
+    # =====================================================================
+    # import the 3D backbone and specify the output point cloud feature dimension
+    from models.pointbert.point_encoder import PointTransformer, PointTransformer_Colored
+    config_addr = './models/pointbert/PointTransformer_1024point.yaml'
+    config = cfg_from_yaml_file(config_addr)
+    point_encoder = PointTransformer_Colored(config.model, args=args)
+    pc_feat_dims = 768
+    # =====================================================================
+
+    # model = ULIP2_WITH_OPENCLIP(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims)
+    model = ULIP2_WITH_OPENCLIP_NoText_NoGeneLoss(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims, num_genes=int(args.input_dim)-3)
+
+    return model
+
+
 
 
 

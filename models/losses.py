@@ -108,3 +108,46 @@ class ULIPWithImageLoss1(nn.Module):
             pc_image_acc = 100 * correct / local_batch_size
 
         return {'loss': loss, 'ulip_loss': loss, 'ulip_pc_image_acc': pc_image_acc, 'gene_loss1': gene_loss1, 'gene_loss2': gene_loss2}
+
+
+
+
+class ULIPWithImageLoss2(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.labels = None
+        self.last_local_batch_size = None
+
+    def forward(self, outputs, label1, label2):
+        pc_embed = outputs['pc_embed']
+        image_embed = outputs['image_embed']
+        logit_scale = outputs['logit_scale']
+        local_batch_size = pc_embed.size(0)
+
+        if local_batch_size != self.last_local_batch_size:
+            self.labels = local_batch_size * utils.get_rank() + torch.arange(
+                local_batch_size, device=pc_embed.device
+            )
+            self.last_local_batch_size = local_batch_size
+
+        # normalized features
+        pc_embed = F.normalize(pc_embed, dim=-1, p=2)
+        image_embed = F.normalize(image_embed, dim=-1, p=2)
+
+        # gather features from all GPUs
+        pc_embed_all, image_embed_all = utils.all_gather_batch([pc_embed, image_embed])
+
+        # cosine similarity as logits
+        logits_per_pc_image = logit_scale * pc_embed @ image_embed_all.t()
+        logits_per_image_pc = logit_scale * image_embed @ pc_embed_all.t()
+
+        loss = (F.cross_entropy(logits_per_pc_image, self.labels) + F.cross_entropy(logits_per_image_pc, self.labels)) / 2
+
+        # compute accuracy
+        with torch.no_grad():
+
+            pred = torch.argmax(logits_per_pc_image, dim=-1)
+            correct = pred.eq(self.labels).sum()
+            pc_image_acc = 100 * correct / local_batch_size
+
+        return {'loss': loss, 'ulip_loss': loss, 'ulip_pc_image_acc': pc_image_acc}
