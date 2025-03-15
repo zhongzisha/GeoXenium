@@ -1,18 +1,28 @@
 #!/bin/bash
 
 
-source /data/zhongz2/anaconda3/bin/activate th24
-module load CUDA/12.1
-module load cuDNN/8.9.2/CUDA-12
-module load gcc/11.3.0  
+if [ "$CLUSTER_NAME" == "FRCE" ]; then
+    cd /scratch/cluster_scratch/zhongz2/ULIP
+    DATA_ROOT=/mnt/gridftp/zhongz2
+
+    source /data/zhongz2/anaconda3/bin/activate th26
+else
+    cd /home/zhongz2/ULIP
+    DATA_ROOT=/data/zhongz2
+
+    source /data/zhongz2/anaconda3/bin/activate th24
+    module load CUDA/12.1
+    module load cuDNN/8.9.2/CUDA-12
+    module load gcc/11.3.0  
+fi
 
 LR=${1}
 BS=${2}
 NNODES=${3}
 IMG_KEY=${4}
+DST_DIR=${5}
 
-DST_DIR=/lscratch/$SLURM_JOB_ID
-OUTPUT_DIR=/data/zhongz2/ULIP_outputs6/nodes${NNODES}/${IMG_KEY}/${LR}/${BS}
+OUTPUT_DIR=${DATA_ROOT}/ULIP_outputs6/nodes${NNODES}/${IMG_KEY}/${LR}/${BS}
 mkdir -p $OUTPUT_DIR
 sleep 5
 

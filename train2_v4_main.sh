@@ -3,27 +3,37 @@
 #SBATCh --mail-type=ALL
 
 
+if [ "$CLUSTER_NAME" == "FRCE" ]; then
+    cd /scratch/cluster_scratch/zhongz2/ULIP
+    DATA_ROOT=/mnt/gridftp/zhongz2
+    DST_DIR=/tmp/zhongz2/ULIP
+else
+    cd /home/zhongz2/ULIP
+    DATA_ROOT=/data/zhongz2
+    DST_DIR=/lscratch/$SLURM_JOB_ID/ULIP
+fi
+
+
 LR=${1}
 BS=${2}
 NNODES=${3}
 IMG_KEY=${4}
 
-cd /home/zhongz2/ULIP
 
 if [ ${NNODES} -gt 1 ]; then
 echo "multi node"
-srun --export ALL --jobid ${SLURM_JOB_ID} bash copydata.sh ${IMG_KEY}
+srun --export ALL --jobid ${SLURM_JOB_ID} bash copydata.sh ${IMG_KEY} ${DST_DIR}
 else
 echo "single node"
-bash copydata.sh ${IMG_KEY}
+bash copydata.sh ${IMG_KEY} ${DST_DIR}
 fi
 
 wait
 
 if [ ${NNODES} -gt 1 ]; then
-srun --export ALL --jobid ${SLURM_JOB_ID} bash train2_v4.sh ${LR} ${BS} ${NNODES} ${IMG_KEY} 
+srun --export ALL --jobid ${SLURM_JOB_ID} bash train2_v4.sh ${LR} ${BS} ${NNODES} ${IMG_KEY} ${DST_DIR}
 else
-bash train2_v4.sh ${LR} ${BS} ${NNODES} ${IMG_KEY}
+bash train2_v4.sh ${LR} ${BS} ${NNODES} ${IMG_KEY} ${DST_DIR}
 fi
 
 wait
