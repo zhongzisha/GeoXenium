@@ -23,6 +23,7 @@ IMG_KEY=${4}
 DST_DIR=${5}
 
 OUTPUT_DIR=${DATA_ROOT}/ULIP_outputs6/nodes${NNODES}/${IMG_KEY}/${LR}/${BS}
+OUTPUT_DIR=${DATA_ROOT}/ULIP_outputs8/nodes${NNODES}/${IMG_KEY}/${LR}/${BS}
 mkdir -p $OUTPUT_DIR
 sleep 5
 
@@ -63,6 +64,7 @@ torchrun \
 --validate_dataset_prompt "shapenetv2_64" \
 --data-path ${DST_DIR} \
 --img-key ${IMG_KEY} \
+--input-dim 5009 \
 2>&1 | tee ${OUTPUT_DIR}/log${num}.txt
 
 

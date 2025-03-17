@@ -118,7 +118,7 @@ class ULIPWithImageLoss2(nn.Module):
         self.labels = None
         self.last_local_batch_size = None
 
-    def forward(self, outputs, label1, label2):
+    def forward(self, outputs):
         pc_embed = outputs['pc_embed']
         image_embed = outputs['image_embed']
         logit_scale = outputs['logit_scale']

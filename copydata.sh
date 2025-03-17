@@ -17,7 +17,7 @@ echo "copy data on `hostname`"
 IMG_KEY=${1}
 DST_DIR=${2}
 
-SRC_DIR=${DATA_ROOT}/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version7_with_video
+SRC_DIR=${DATA_ROOT}/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version8_with_video
 
 
 for subset in "train" "val"; do

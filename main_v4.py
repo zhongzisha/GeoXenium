@@ -40,7 +40,7 @@ def get_args_parser():
     parser.add_argument('--output-dir', default='./outputs', type=str, help='output dir')
     parser.add_argument('--data-path', default='', type=str, help='data path')
     parser.add_argument('--img-key', default='', type=str, help='img key')
-    parser.add_argument('--input-dim', default=6, type=int)  # xyz+rgb
+    parser.add_argument('--input-dim', default=6, type=int)  # xyz+rgb (include the XYZ data)
     parser.add_argument('--has-text', default=1, type=int, help='has text or not')
     parser.add_argument('--pretrain_dataset_name', default='shapenet', type=str)
     parser.add_argument('--pretrain_dataset_prompt', default='shapenet_64', type=str)
@@ -73,7 +73,7 @@ def get_args_parser():
 
     # System
     parser.add_argument('--print-freq', default=10, type=int, help='print frequency')
-    parser.add_argument('-j', '--workers', default=10, type=int, metavar='N',
+    parser.add_argument('-j', '--workers', default=2, type=int, metavar='N',
                         help='number of data loading workers per process')
     parser.add_argument('--evaluate_3d', action='store_true', help='eval ulip only')
     parser.add_argument('--evaluate_3d_ulip2', action='store_true', help='eval ulip2 only')
@@ -321,9 +321,9 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule,
         # texts = inputs[2]
         pc = inputs[2]
         image = inputs[3]
-        label1 = inputs[4]
-        label2 = inputs[5]
-        inputs = [pc, image, label1, label2]
+        # label1 = inputs[4]
+        # label2 = inputs[5]
+        inputs = [pc, image]#, label1, label2]
 
         inputs = [tensor.cuda(args.gpu, non_blocking=True) for tensor in inputs]
 
