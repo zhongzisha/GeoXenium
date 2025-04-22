@@ -73,7 +73,7 @@ def get_args_parser():
 
     # System
     parser.add_argument('--print-freq', default=10, type=int, help='print frequency')
-    parser.add_argument('-j', '--workers', default=2, type=int, metavar='N',
+    parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
                         help='number of data loading workers per process')
     parser.add_argument('--evaluate_3d', action='store_true', help='eval ulip only')
     parser.add_argument('--evaluate_3d_ulip2', action='store_true', help='eval ulip2 only')
@@ -208,6 +208,9 @@ def main(args):
     train_dataset = get_dataset(train_transform, tokenizer, args, 'train')
     val_dataset = get_dataset(None, tokenizer, args, 'val')
 
+    print('len train dataset: ', len(train_dataset))
+    print('len val dataset: ', len(val_dataset))
+
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
         val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset)
@@ -224,6 +227,9 @@ def main(args):
         val_dataset, batch_size=args.batch_size, shuffle=(val_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=val_sampler, drop_last=False)
 
+    print('len train loader: ', len(train_loader))
+    print('len val loader: ', len(val_loader))
+
     lr_schedule = utils.cosine_scheduler(args.lr, args.lr_end, args.epochs,
         len(train_loader) // args.update_freq, warmup_epochs=args.warmup_epochs, start_warmup_value=args.lr_start)
 
@@ -234,7 +240,9 @@ def main(args):
     best_epoch = -1
     
     for epoch in range(args.start_epoch, args.epochs):
+        print('begin epoch = ', epoch)
         if args.distributed:
+            print('using distributed')
             train_sampler.set_epoch(epoch)
 
         train_stats = train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule, args)
@@ -290,6 +298,7 @@ def main(args):
 
 
 def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule, args):
+    print('begin train')
     batch_time = AverageMeter('Time', ':6.2f')
     data_time = AverageMeter('Data', ':6.2f')
     mem = AverageMeter('Mem (GB)', ':6.1f')
@@ -300,13 +309,19 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule,
         iters_per_epoch,
         [batch_time, data_time, mem, *metrics.values()],
         prefix="Epoch: [{}]".format(epoch))
+    print('begin train2')
 
     # switch to train mode
     model.train()
 
+    print('begin train3')
+    print('len train_loader', len(train_loader))
+
     end = time.time()
     logit_scale = 0
+    print('begin loader')
     for data_iter, inputs in enumerate(train_loader): 
+        print('data_iter: ', data_iter)
         # sample['taxonomy_id'], sample['model_id'], tokenized_captions, data, image
         optim_iter = data_iter // args.update_freq
 
@@ -369,7 +384,8 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule,
                         'scaler': scaler.get_scale(),
                         'logit': logit_scale})
             progress.display(optim_iter)
-
+    
+    print('end loader')
     progress.synchronize()
     return {**{k: v.avg for k, v in metrics.items()},
             'lr': optimizer.param_groups[0]['lr'],

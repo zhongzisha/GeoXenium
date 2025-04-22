@@ -654,6 +654,8 @@ class ShapeNetV2_bak3(data.Dataset):
 class ShapeNetV2(data.Dataset):
     def __init__(self, config):
 
+        # print('begin ShapeNetV2')
+
         self.data_root = config.DATA_PATH
         self.img_key = config.IMG_KEY
         self.subset = config.subset
@@ -662,14 +664,15 @@ class ShapeNetV2(data.Dataset):
         self.train_transform = config.train_transform
         with open(os.path.join(self.data_root, self.subset, f'{self.subset}_items.pkl'), 'rb') as fp:
             items = pickle.load(fp)
-        
+        # print(self.data_root, self.subset)
+        # print('items: ', items)
         # filtering
         for k in list(items.keys()):
             v = items[k]
-            if 'inds' not in v or 'inds2' not in v:
+            if 'inds' not in v: # or 'inds2' not in v:
                 items.pop(k)
             else:
-                if len(v['inds']) == 0 or len(v['inds2']) ==0:
+                if len(v['inds']) == 0: # or len(v['inds2']) ==0:
                     items.pop(k)
 
         self.prefixes = list(items.keys())
@@ -704,10 +707,10 @@ class ShapeNetV2(data.Dataset):
         prefix1 = self.prefixes[idx]
         item = self.items[prefix1]
         prefix, gene_inds, captions, label = item['prefix'], item['gene_inds'], item['label_txt'], item['label']
-        inds, inds2 = item['inds'], item['inds2']
+        # inds, inds2 = item['inds'], item['inds2']
 
-        label1 = self.geneX[inds].mean(axis=0)
-        label2 = self.geneX[inds2].mean(axis=0)
+        # label1 = self.geneX[inds].mean(axis=0)
+        # label2 = self.geneX[inds2].mean(axis=0)
 
         num_sub_images = 32
         sub_image_size = 14
@@ -752,9 +755,9 @@ class ShapeNetV2(data.Dataset):
                 raise ValueError("image is corrupted: {}".format(picked_image_addr))
 
         if self.subset == 'train':
-            return 'mouse', 'cell_type', data, image, label1, label2
+            return 'mouse', 'cell_type', data, image# , label1, label2
         else:
-            return data, label, label1, label2
+            return data, label# , label1, label2
 
     def __len__(self):
         return len(self.items)

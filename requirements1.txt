@@ -4,8 +4,9 @@ ftfy
 regex
 pyyaml_env_tag
 h5py
-open3d==0.16.0
+open3d
 wandb
 termcolor
 lmdb
-open-clip-torch==2.24.0
+open-clip-torch
+scanpy

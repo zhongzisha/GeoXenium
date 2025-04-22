@@ -5,7 +5,10 @@ if [ "$CLUSTER_NAME" == "FRCE" ]; then
     cd /scratch/cluster_scratch/zhongz2/ULIP
     DATA_ROOT=/mnt/gridftp/zhongz2
 
-    source /data/zhongz2/anaconda3/bin/activate th26
+    source /scratch/cluster_scratch/zhongz2/anaconda3/bin/activate th23 #th26
+    module load cuda/11.8
+    module load cudnn/8.8.3-cuda11
+    module load gcc/11.2.0
 else
     cd /home/zhongz2/ULIP
     DATA_ROOT=/data/zhongz2
@@ -81,18 +84,20 @@ torchrun \
     --max_restarts 0 \
     --role `hostname -s`: \
     --tee 3 \
-     main_v4.py \
+
+CUDA_VISIBLE_DEVICES=0,1,2,3 \   
+python -m torch.distributed.launch --nproc_per_node=4 main_v4.py \
 --model ULIP2_PointBERT_Colored_1024_NoText_NoGeneLoss \
 --npoints 1024 \
 --lr 5e-5 \
---batch-size 32 \
---output-dir /lscratch/$SLURM_JOB_ID/outputs \
+--batch-size 4 \
+--output-dir ${OUTPUT_DIR} \
 --pretrain_dataset_name "shapenetv2" \
 --pretrain_dataset_prompt "shapenetv2_64" \
 --validate_dataset_name "shapenetv2" \
 --validate_dataset_prompt "shapenetv2_64" \
---data-path /lscratch/$SLURM_JOB_ID \
---img-key he \
+--data-path ${DST_DIR} \
+--img-key ${IMG_KEY} \
 --input-dim 5009
 
 

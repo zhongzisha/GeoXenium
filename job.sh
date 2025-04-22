@@ -27,15 +27,22 @@ git clone https://github.com/unlimblue/KNN_CUDA.git
 
 export TORCH_CUDA_ARCH_LIST="7.5 8.0 8.6"
 
-
-
-    source $FRCE_DATA_ROOT/anaonda3/bin/activate th20
-    module load cuda/11.8
-    module load cudnn/8.8.3-cuda11
-    module load gcc/11.2.0
+source $FRCE_DATA_ROOT/anaonda3/bin/activate th20
+module load cuda/11.8
+module load cudnn/8.8.3-cuda11
+module load gcc/11.2.0
 
 
 srun --export ALL --pty -p quick --gres=gpu:a100:4,lscratch:400 --cpus-per-task=32 --mem=200G  --time=4:00:00 bash
+
+
+
+srun --export ALL --pty -p gpu --gres=gpu:4 --cpus-per-task=32 --mem=100G  --time=24:00:00 bash
+
+
+
+
+
 
 
 
