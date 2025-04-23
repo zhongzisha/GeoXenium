@@ -1,43 +1,21 @@
 #!/bin/bash
 
 
-if [ "$CLUSTER_NAME" == "FRCE" ]; then
-    cd /scratch/cluster_scratch/zhongz2/ULIP
-    DATA_ROOT=/mnt/gridftp/zhongz2
-
-    source /scratch/cluster_scratch/zhongz2/anaconda3/bin/activate th23 #th26
-    module load cuda/11.8
-    module load cudnn/8.8.3-cuda11
-    module load gcc/11.2.0
-else
-    cd /home/zhongz2/ULIP
-    DATA_ROOT=/data/zhongz2
-
-    source /data/zhongz2/anaconda3/bin/activate th24
-    module load CUDA/12.1
-    module load cuDNN/8.9.2/CUDA-12
-    module load gcc/11.3.0  
-fi
-
 LR=${1}
 BS=${2}
 NNODES=${3}
 IMG_KEY=${4}
 DST_DIR=${5}
-
-OUTPUT_DIR=${DATA_ROOT}/ULIP_outputs6/nodes${NNODES}/${IMG_KEY}/${LR}/${BS}
-OUTPUT_DIR=${DATA_ROOT}/ULIP_outputs8/nodes${NNODES}/${IMG_KEY}/${LR}/${BS}
-mkdir -p $OUTPUT_DIR
-sleep 5
+OUTPUT_DIR=${6}
 
 if [ "${SLURM_JOB_NODELIST}" != "" ]; then
     MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
     NNODES=$SLURM_NNODES
-    GPUS_PER_NODE=2
+    GPUS_PER_NODE=4
 else
     MASTER_ADDR=`hostname`
     NNODES=1
-    GPUS_PER_NODE=2
+    GPUS_PER_NODE=4
 fi
 MASTER_PORT=25199
 
@@ -57,6 +35,8 @@ torchrun \
     --tee 3 \
      main_v4.py \
 --model ULIP2_PointBERT_Colored_1024_NoText_NoGeneLoss \
+--image_model ViT-B-16 \
+--image_model_pretrained "openai" \
 --npoints 1024 \
 --lr ${LR} \
 --batch-size ${BS} \

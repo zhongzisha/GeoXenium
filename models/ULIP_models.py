@@ -298,8 +298,8 @@ class ULIP2_WITH_OPENCLIP_NoText_NoGeneLoss(nn.Module):
 
         self.point_encoder = point_encoder
         
-        self.pc_projection = nn.Parameter(torch.empty(kwargs.pc_feat_dims, 1280))
-        nn.init.normal_(self.pc_projection, std=1280 ** -0.5)
+        self.pc_projection = nn.Parameter(torch.empty(kwargs.pc_feat_dims, kwargs.image_feat_dims))
+        nn.init.normal_(self.pc_projection, std=kwargs.image_feat_dims ** -0.5)
 
     def encode_image(self, image):
         x = self.open_clip_model.encode_image(image)
@@ -522,13 +522,17 @@ def ULIP2_PointBERT_Colored_1024_NoText(args):
     return model
 
 
+IMAGE_FEAT_DIMS_DICT = {
+    'ViT-bigG-14': 1280,
+    'ViT-B-16': 512
+}
 
 
 def ULIP2_PointBERT_Colored_1024_NoText_NoGeneLoss(args):
     print("Get openclip model:")
-    open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-bigG-14', pretrained='laion2b_s39b_b160k')
-    # open_clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-16')
+    open_clip_model, _, preprocess = open_clip.create_model_and_transforms(args.image_model, pretrained=args.image_model_pretrained)
     open_clip_model.eval()
+    image_feat_dims = IMAGE_FEAT_DIMS_DICT[args.image_model]
     print("Finished loading the openclip model.")
 
     # =====================================================================
@@ -540,13 +544,12 @@ def ULIP2_PointBERT_Colored_1024_NoText_NoGeneLoss(args):
     pc_feat_dims = 768
     # =====================================================================
 
-    # model = ULIP2_WITH_OPENCLIP(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims)
-    model = ULIP2_WITH_OPENCLIP_NoText_NoGeneLoss(open_clip_model=open_clip_model, point_encoder=point_encoder, pc_feat_dims=pc_feat_dims, num_genes=int(args.input_dim)-3)
+    model = ULIP2_WITH_OPENCLIP_NoText_NoGeneLoss(
+        open_clip_model=open_clip_model, point_encoder=point_encoder, \
+        pc_feat_dims=pc_feat_dims, image_feat_dims=image_feat_dims, \
+            num_genes=int(args.input_dim)-3)
 
     return model
-
-
-
 
 
 def ULIP_PN_NEXT(args):

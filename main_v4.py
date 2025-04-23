@@ -50,6 +50,8 @@ def get_args_parser():
     parser.add_argument('--npoints', default=8192, type=int, help='number of points used for pre-train and test.')
     # Model
     parser.add_argument('--model', default='ULIP_PN_SSG', type=str)
+    parser.add_argument('--image_model', default='ViT-bigG-14', type=str)
+    parser.add_argument('--image_model_pretrained', default='laion2b_s39b_b160k', type=str)
     # Training
     parser.add_argument('--epochs', default=250, type=int)
     parser.add_argument('--warmup-epochs', default=1, type=int)

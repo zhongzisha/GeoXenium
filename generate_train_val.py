@@ -12,6 +12,8 @@ src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version6'
 src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version7_with_video'
 src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version8_with_video'
 # src_dir = '/mnt/gridftp/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version8_with_video'
+src_dir = sys.argv[1]
+output_dir = sys.argv[2]
 
 dirs = os.listdir(src_dir)
 
@@ -42,18 +44,18 @@ for subset, inds in indices.items():
             all_items.update(pickle.load(fp))
         with open(os.path.join(src_dir, d, f'train_items_{num_patches}_{patch_size}.csv'), 'r') as fp:
             all_video_items.extend(fp.readlines())
-    with open(os.path.join(src_dir, subset+'_list_dapi.txt'), 'w') as fp:
+    with open(os.path.join(output_dir, subset+'_list_dapi.txt'), 'w') as fp:
         fp.writelines('\n'.join(file_list))
         fp.write('\n')
-    with open(os.path.join(src_dir, subset+'_list_he.txt'), 'w') as fp:
+    with open(os.path.join(output_dir, subset+'_list_he.txt'), 'w') as fp:
         fp.writelines('\n'.join(file_list_he))
         fp.write('\n')
-    with open(os.path.join(src_dir, subset+'_list_video.txt'), 'w') as fp:
+    with open(os.path.join(output_dir, subset+'_list_video.txt'), 'w') as fp:
         fp.writelines('\n'.join(file_list_video))
         fp.write('\n')
-    with open(os.path.join(src_dir, subset+'_items.pkl'), 'wb') as fp:
+    with open(os.path.join(output_dir, subset+'_items.pkl'), 'wb') as fp:
         pickle.dump(all_items, fp)
-    with open(os.path.join(src_dir, subset+'_items.csv'), 'w') as fp:
+    with open(os.path.join(output_dir, subset+'_items.csv'), 'w') as fp:
         fp.writelines(all_video_items)
 
 
