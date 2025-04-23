@@ -11,7 +11,7 @@ src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version5'
 src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version6'
 src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version7_with_video'
 src_dir = '/data/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version8_with_video'
-src_dir = '/mnt/gridftp/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version8_with_video'
+# src_dir = '/mnt/gridftp/zhongz2/Xenium_Prime_Mouse_Brain_Coronal_FF_outs/version8_with_video'
 
 dirs = os.listdir(src_dir)
 

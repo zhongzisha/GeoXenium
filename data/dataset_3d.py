@@ -654,8 +654,6 @@ class ShapeNetV2_bak3(data.Dataset):
 class ShapeNetV2(data.Dataset):
     def __init__(self, config):
 
-        # print('begin ShapeNetV2')
-
         self.data_root = config.DATA_PATH
         self.img_key = config.IMG_KEY
         self.subset = config.subset
@@ -702,7 +700,7 @@ class ShapeNetV2(data.Dataset):
         pc = pc / m
         return pc
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx): 
 
         prefix1 = self.prefixes[idx]
         item = self.items[prefix1]
@@ -742,22 +740,18 @@ class ShapeNetV2(data.Dataset):
         data = np.concatenate([data, rgb_data], axis=1)
         data = torch.from_numpy(data).float()
 
-        if self.subset == 'train':
-            try:
-                if self.img_key == 'he':
-                    picked_image_addr = os.path.join(self.data_root, self.subset, prefix+'.jpg')
-                    image = pil_loader(picked_image_addr)
-                else:
-                    picked_image_addr = os.path.join(self.data_root, self.subset, prefix+'_'+self.img_key)
-                    image = np.load(picked_image_addr)
-                image = self.train_transform(image)
-            except:
-                raise ValueError("image is corrupted: {}".format(picked_image_addr))
-
-        if self.subset == 'train':
-            return 'mouse', 'cell_type', data, image# , label1, label2
+        if self.train_transform is not None:
+            if self.img_key == 'he':
+                picked_image_addr = os.path.join(self.data_root, self.subset, prefix+'.jpg')
+                image = pil_loader(picked_image_addr)
+            else:
+                picked_image_addr = os.path.join(self.data_root, self.subset, prefix+'_'+self.img_key)
+                image = np.load(picked_image_addr)
+            image = self.train_transform(image) 
         else:
-            return data, label# , label1, label2
+            image = None
+
+        return 'mouse', 'cell_type', data, image, label
 
     def __len__(self):
         return len(self.items)

@@ -33,11 +33,11 @@ sleep 5
 if [ "${SLURM_JOB_NODELIST}" != "" ]; then
     MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
     NNODES=$SLURM_NNODES
-    GPUS_PER_NODE=4
+    GPUS_PER_NODE=2
 else
     MASTER_ADDR=`hostname`
     NNODES=1
-    GPUS_PER_NODE=4
+    GPUS_PER_NODE=2
 fi
 MASTER_PORT=25199
 
@@ -85,8 +85,8 @@ torchrun \
     --role `hostname -s`: \
     --tee 3 \
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 \   
-python -m torch.distributed.launch --nproc_per_node=4 main_v4.py \
+CUDA_VISIBLE_DEVICES=0,1 \   
+python -m torch.distributed.launch --nproc_per_node=2 main_v4.py \
 --model ULIP2_PointBERT_Colored_1024_NoText_NoGeneLoss \
 --npoints 1024 \
 --lr 5e-5 \

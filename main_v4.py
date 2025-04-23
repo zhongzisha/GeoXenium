@@ -73,7 +73,7 @@ def get_args_parser():
 
     # System
     parser.add_argument('--print-freq', default=10, type=int, help='print frequency')
-    parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
+    parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                         help='number of data loading workers per process')
     parser.add_argument('--evaluate_3d', action='store_true', help='eval ulip only')
     parser.add_argument('--evaluate_3d_ulip2', action='store_true', help='eval ulip2 only')
@@ -208,9 +208,6 @@ def main(args):
     train_dataset = get_dataset(train_transform, tokenizer, args, 'train')
     val_dataset = get_dataset(None, tokenizer, args, 'val')
 
-    print('len train dataset: ', len(train_dataset))
-    print('len val dataset: ', len(val_dataset))
-
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
         val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset)
@@ -227,9 +224,6 @@ def main(args):
         val_dataset, batch_size=args.batch_size, shuffle=(val_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=val_sampler, drop_last=False)
 
-    print('len train loader: ', len(train_loader))
-    print('len val loader: ', len(val_loader))
-
     lr_schedule = utils.cosine_scheduler(args.lr, args.lr_end, args.epochs,
         len(train_loader) // args.update_freq, warmup_epochs=args.warmup_epochs, start_warmup_value=args.lr_start)
 
@@ -240,9 +234,7 @@ def main(args):
     best_epoch = -1
     
     for epoch in range(args.start_epoch, args.epochs):
-        print('begin epoch = ', epoch)
         if args.distributed:
-            print('using distributed')
             train_sampler.set_epoch(epoch)
 
         train_stats = train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule, args)
@@ -298,7 +290,6 @@ def main(args):
 
 
 def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule, args):
-    print('begin train')
     batch_time = AverageMeter('Time', ':6.2f')
     data_time = AverageMeter('Data', ':6.2f')
     mem = AverageMeter('Mem (GB)', ':6.1f')
@@ -309,19 +300,13 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule,
         iters_per_epoch,
         [batch_time, data_time, mem, *metrics.values()],
         prefix="Epoch: [{}]".format(epoch))
-    print('begin train2')
 
     # switch to train mode
     model.train()
 
-    print('begin train3')
-    print('len train_loader', len(train_loader))
-
     end = time.time()
     logit_scale = 0
-    print('begin loader')
     for data_iter, inputs in enumerate(train_loader): 
-        print('data_iter: ', data_iter)
         # sample['taxonomy_id'], sample['model_id'], tokenized_captions, data, image
         optim_iter = data_iter // args.update_freq
 
@@ -385,7 +370,6 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, lr_schedule,
                         'logit': logit_scale})
             progress.display(optim_iter)
     
-    print('end loader')
     progress.synchronize()
     return {**{k: v.avg for k, v in metrics.items()},
             'lr': optimizer.param_groups[0]['lr'],
@@ -614,8 +598,101 @@ def accuracy(output, target, topk=(1,)):
         return res, correct
 
 
+def test_dataset(args):
+    utils.init_distributed_mode(args)
+
+    print('args')
+    print(args)
+
+    # import pickle
+    # if not os.path.exists('args.pkl'):
+    #     with open('args.pkl', 'wb') as fp:
+    #         pickle.dump({'args': args}, fp)
+    # else:
+    #     with open('args.pkl', 'rb') as fp:
+    #         args = pickle.load(fp)['args']
+
+    # fix the seed for reproducibility
+    seed = args.seed + utils.get_rank()
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+
+    cudnn.benchmark = True
+
+    # Data loading code
+    print("=> creating dataset")
+    tokenizer = SimpleTokenizer()
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+    if args.img_key == 'he':
+        train_transform = transforms.Compose([
+                # transforms.RandomResizedCrop(224, scale=(0.5, 1.0)),
+                # transforms.Resize(size=(224, 224)),
+                transforms.ToTensor(),
+                normalize
+            ])
+    elif args.img_key == 'dapi':
+        def npy_to_tensor(arr):
+            return torch.from_numpy(arr).permute(2, 0, 1)
+        train_transform = transforms.Compose([
+                # transforms.RandomResizedCrop(224, scale=(0.5, 1.0)),
+                # transforms.Resize(size=(224, 224)),
+                # transforms.ToTensor(),
+                npy_to_tensor,
+                normalize
+            ])
+    train_dataset = get_dataset(train_transform, tokenizer, args, 'train')
+    val_dataset = get_dataset(None, tokenizer, args, 'val')
+
+    print('len train dataset: ', len(train_dataset))
+    print('len val dataset: ', len(val_dataset))
+
+    if args.distributed:
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+        val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset)
+    else:
+        train_sampler = None
+        val_sampler = None
+    print('train_sampler: ', train_sampler)
+    print('val_sampler: ', val_sampler)
+
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
+        num_workers=args.workers, pin_memory=True, sampler=train_sampler, drop_last=True,
+        collate_fn=customized_collate_fn)
+
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset, batch_size=args.batch_size, shuffle=(val_sampler is None),
+        num_workers=args.workers, pin_memory=True, sampler=val_sampler, drop_last=False)
+
+    print('len train loader: ', len(train_loader))
+    print('len val loader: ', len(val_loader))
+
+
+    for epoch in range(args.start_epoch, args.epochs):
+        print('begin epoch = ', epoch)
+        if args.distributed:
+            print('using distributed')
+            train_sampler.set_epoch(epoch)
+
+        print('begin loader')
+        for data_iter, inputs in enumerate(train_loader): 
+            print('data_iter: ', data_iter)
+            pc = inputs[2]
+            image = inputs[3]
+            print(pc.shape, image.shape)
+            break
+
+        print('end epoch = ', epoch)
+        break
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('ULIP training and evaluation', parents=[get_args_parser()])
     args = parser.parse_args()
+
     os.makedirs(args.output_dir, exist_ok=True)
     main(args)
+    # test_dataset(args)
